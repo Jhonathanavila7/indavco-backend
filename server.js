@@ -6,8 +6,8 @@ const connectDB = require('./src/config/database');
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://dulcet-bienenstitch-fd15a1.netlify.app',
-  'https://effulgent-empanada-af5673.netlify.app',
+  'https://dulcet-bienenstitch-fd15a1.netlify.app',  // Frontend principal
+  'https://effulgent-empanada-af5673.netlify.app',   // Admin panel
 ];
 
 const app = express();
@@ -15,8 +15,10 @@ const app = express();
 // Conectar a la base de datos
 connectDB();
 
+// Configuración CORS
 app.use(cors({
   origin: function(origin, callback) {
+    // Permitir requests sin origin (como mobile apps o curl requests)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) === -1) {
@@ -25,8 +27,13 @@ app.use(cors({
     }
     return callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Middleware para manejar OPTIONS
+app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -48,71 +55,127 @@ app.use('/api/projects', require('./src/routes/projectRoutes'));
 app.use('/api/corporate-plans', require('./src/routes/corporatePlanRoutes'));
 app.use('/api/clients', require('./src/routes/clientRoutes'));
 
-// ⬇️⬇️⬇️ AGREGAR AQUÍ LAS RUTAS TEMPORALES ⬇️⬇️⬇️
+// ============= RUTAS TEMPORALES PARA SETUP =============
+// ELIMINAR ESTAS RUTAS DESPUÉS DE CREAR EL ADMIN
 
-// Ruta temporal para crear admin inicial
-app.post('/api/setup-admin', async (req, res) => {
+// Ruta para crear admin correctamente
+app.get('/api/create-admin-now', async (req, res) => {
   try {
     const User = require('./src/models/User');
     
-    // Verificar si ya existe algún usuario admin
-    const adminExists = await User.findOne({ email: 'admin@indavco.com' });
+    // Primero, eliminar cualquier admin existente
+    await User.deleteOne({ email: 'admin@indavco.com' });
     
-    if (adminExists) {
-      return res.json({ 
-        message: 'El usuario admin ya existe',
-        hint: 'Intenta hacer login con admin@indavco.com'
-      });
-    }
-    
-    // Crear el usuario admin
-    const admin = await User.create({
+    // Crear nuevo admin - el password se hasheará automáticamente
+    const admin = new User({
       name: 'Administrador',
       email: 'admin@indavco.com',
-      password: 'admin123',
+      password: 'admin123',  // Se hasheará automáticamente con bcryptjs
       role: 'admin',
       isActive: true
     });
     
+    // Guardar - esto activará el pre('save') que hashea el password
+    await admin.save();
+    
     res.json({ 
       success: true,
-      message: 'Usuario admin creado exitosamente',
-      credentials: {
-        email: 'admin@indavco.com',
-        password: 'admin123'
+      message: 'Admin creado exitosamente con bcryptjs',
+      admin: {
+        email: admin.email,
+        role: admin.role,
+        isActive: admin.isActive
       }
     });
     
   } catch (error) {
-    console.error('Error creando admin:', error);
     res.status(500).json({ 
       error: error.message,
-      details: 'Verifica la conexión a MongoDB'
+      details: 'Error creando admin'
     });
   }
 });
 
-// Ruta para verificar usuarios
-app.get('/api/check-users', async (req, res) => {
+// Ruta para verificar que el admin existe
+app.get('/api/check-admin', async (req, res) => {
   try {
     const User = require('./src/models/User');
-    const count = await User.countDocuments();
-    const users = await User.find().select('email role isActive');
+    
+    const admin = await User.findOne({ email: 'admin@indavco.com' });
+    const totalUsers = await User.countDocuments();
     
     res.json({
-      totalUsers: count,
-      users: users
+      adminExists: !!admin,
+      adminDetails: admin ? {
+        email: admin.email,
+        role: admin.role,
+        isActive: admin.isActive,
+        name: admin.name
+      } : null,
+      totalUsers: totalUsers
     });
+    
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ⬆️⬆️⬆️ FIN DE RUTAS TEMPORALES ⬆️⬆️⬆️
+// Ruta de prueba para verificar login
+app.get('/api/test-login', async (req, res) => {
+  try {
+    const User = require('./src/models/User');
+    const bcrypt = require('bcryptjs');
+    
+    // Buscar el usuario
+    const user = await User.findOne({ email: 'admin@indavco.com' }).select('+password');
+    
+    if (!user) {
+      return res.json({ error: 'Usuario no encontrado en la base de datos' });
+    }
+    
+    // Verificar password
+    const isValid = await bcrypt.compare('admin123', user.password);
+    
+    res.json({
+      userFound: true,
+      email: user.email,
+      hasPassword: !!user.password,
+      passwordLength: user.password?.length,
+      isActive: user.isActive,
+      role: user.role,
+      passwordValid: isValid,
+      message: isValid ? 'Password correcto, el login debería funcionar' : 'Password incorrecto'
+    });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
+});
+
+// ============= FIN DE RUTAS TEMPORALES =============
+
+// Manejo de errores 404
+app.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: 'Ruta no encontrada'
+  });
+});
+
+// Manejo de errores general
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Error interno del servidor'
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-  console.log(`📍 Entorno: ${process.env.NODE_ENV}`);
+  console.log(`📍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📡 CORS habilitado para:`, allowedOrigins);
 });
+
+module.exports = app;
