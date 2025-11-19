@@ -6,7 +6,8 @@ const connectDB = require('./src/config/database');
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://dulcet-bienenstitch-fd15a1.netlify.app',
+  'https://dulcet-bienenstitch-fd15a1.netlify.app',  // Frontend principal
+  'https://effulgent-empanada-af5673.netlify.app',   // Admin panel
 ];
 
 const app = express();
@@ -54,10 +55,3 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
   console.log(`📍 Entorno: ${process.env.NODE_ENV}`);
 });
-```
-
-## 4. **Para verificar:**
-
-1. **Prueba el backend directamente:**
-```
-   https://indavco-backend.onrender.com/api/clients
