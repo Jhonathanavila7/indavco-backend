@@ -2,11 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./src/config/database');
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://dulcet-bienenstitch-fd15a1.netlify.app',  // Tu frontend en Netlify
-  // Agrega aquí el dominio de tu admin panel cuando lo subas
+  'https://dulcet-bienenstitch-fd15a1.netlify.app',
 ];
 
 const app = express();
@@ -27,6 +27,7 @@ app.use(cors({
   },
   credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
@@ -53,3 +54,10 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
   console.log(`📍 Entorno: ${process.env.NODE_ENV}`);
 });
+```
+
+## 4. **Para verificar:**
+
+1. **Prueba el backend directamente:**
+```
+   https://indavco-backend.onrender.com/api/clients
