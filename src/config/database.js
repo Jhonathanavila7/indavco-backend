@@ -1,4 +1,4 @@
-cconst mongoose = require('mongoose'); // Asegúrate de que sea 'const', no 'onst'
+const mongoose = require('mongoose'); // Asegúrate de que sea 'const', no 'onst'
 
 const connectDB = async () => {
   try {
