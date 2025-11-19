@@ -2,22 +2,30 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./src/config/database');
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://dulcet-bienenstitch-fd15a1.netlify.app',  // Tu frontend en Netlify
+  // Agrega aquí el dominio de tu admin panel cuando lo subas
+];
 
 const app = express();
 
 // Conectar a la base de datos
 connectDB();
 
-// Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:5173',                          // Para que te funcione en tu PC
-    'http://localhost:3000',                          // Por si acaso usas este puerto
-    'https://dulcet-bienenstitch-fd15a1.netlify.app' // 👈 TU APP EN NETLIFY (Copiado de tu error)
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: function(origin, callback) {
+    // Permitir requests sin origin (como mobile apps o curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
